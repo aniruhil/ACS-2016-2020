@@ -1,0 +1,1362 @@
+---
+title: "A Profile of Disability in Ohio"
+author: "Ani Ruhil"
+format: html
+self-contained: true
+editor_options: 
+  chunk_output_type: console
+  
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE, echo = FALSE, warning = FALSE, message = FALSE
+  )
+```
+[Measuring Disability in the Census](https://www2.census.gov/programs-surveys/acs/tech_docs/subject_definitions/2020_ACSSubjectDefinitions.pdf)
+
+Disability Status Under the conceptual framework of disability described by the Institute of Medicine (IOM) and the International Classification of Functioning, Disability, and Health (ICF), disability is defined as the product of interactions among individuals’ bodies; their physical, emotional, and mental health; and the physical and social environment in which they live, work, or play.  Disability exists where this interaction results in limitations of activities and restrictions to full participation at school, at work, at home, or in the community.  For example, disability may exist where a child has difficulty learning because the school cannot accommodate the child’s deafness. 
+
+Furthermore, disability is a dynamic concept that changes over time as one’s health improves or declines, as technology advances, and as social structures adapt. As such, disability is a continuum in which the degree of difficulty may also increase or decrease.  Because disability exists along a continuum, various cut-offs are used to allow for a simpler understanding of the concept, the most common of which is the dichotomous “With a disability”/“no disability” categorization. 
+
+Measuring this complex concept of disability with a short set of six questions is difficult.  Because of the multitude of possible functional limitations that may present as disabilities, and in the absence of information on external factors that influence disability, surveys like the ACS are limited to capturing difficulty with only selected activities.  Thus, people identified by the ACS as having a disability are those who report difficulty with specific functions, and may, in the absence of accommodation, have a disability.  While this definition is different from the one described by the IOM and ICF conceptual frameworks, it relates to the programmatic definitions used in most Federal and state legislation. 
+
+In an attempt to capture a variety of characteristics that encompass the definition of disability, the ACS identifies serious difficulty with four basic areas of functioning – hearing, vision, cognition, and ambulation.  These functional limitations are supplemented by questions about difficulties with selected activities from the Katz Activities of Daily Living (ADL) and Lawton Instrumental Activities of Daily Living (IADL) scales, namely difficulty bathing and dressing, and difficulty performing errands such as shopping.  Overall, the ACS 
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(scales)
+library(forcats)
+
+load_variables(
+  2020, 
+  "acs5"
+  ) -> myvars
+```
+
+# Disability Characteristics
+
+Ohio ranks 16th in terms of the percent of the total population with a disability (14%). The 2016-2020 data show 14.2% of female Ohioans with a disability versus a slightly smaller 13.7% of male Ohioans. In terms of age-groups, 47.7% of Ohioans ages 75 or older report a disability, followed by 24.5% of Ohioans 65-74 years of age, 14.3% of Ohioans 35-64 years of age, 7.7% of Ohioans 18-34 years of age, 6.6% of Ohioans 5-17 years of age, and 0.7% of Ohioans under 5 years of age. 
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "B18101",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state
+
+b18101_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab01_df
+
+tab01_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total_popn = sum(estimate)
+    ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total = sum(estimate)
+    ) %>%
+  ungroup() %>%
+  select(NAME, disability, total_popn, total) %>%
+  distinct() %>%
+  mutate(
+    prop = (total / total_popn)
+  ) %>%
+  group_by(
+    NAME, total_popn
+  ) %>%
+  select(NAME, total_popn, disability, prop) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+  ) -> tab01
+
+tab01 %>% 
+  select(1:3) %>%
+  arrange(- `With a Disability`) %>%
+  DT::datatable(
+    ., 
+    caption = "Percent of State Population with a Disability",
+    rownames = FALSE, 
+    colnames = c(
+      "State", "Total Population", "% with Disability"
+      ),
+    extensions = 'Buttons', options = list(
+      dom = 'Bfrtip',
+      buttons = 
+        list(
+          #'copy', 'print', 
+          list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download'
+            )
+          )
+      )
+    ) %>%
+  DT::formatPercentage('With a Disability', 1) %>%
+  DT::formatCurrency(
+    'total_popn', 
+    currency = "", interval = 3, 
+    mark = ",", digits = 0
+    )
+```
+
+```{r}
+tab01_df %>%
+  group_by(NAME) %>%
+  mutate(
+    state_total = sum(estimate)
+    ) %>%
+  group_by(NAME, sex) %>%
+  mutate(
+    total_state_sex = sum(estimate)
+    ) %>%
+  group_by(NAME, sex, disability) %>%
+  mutate(
+    total_state_sex_disabled = sum(estimate)
+    ) %>%
+  ungroup() %>%
+  select(
+    NAME, sex, disability, state_total, total_state_sex, total_state_sex_disabled
+    ) %>%
+  distinct() %>%
+  ungroup() %>%
+  mutate(
+    prop = (total_state_sex_disabled / total_state_sex)
+  ) %>%
+  group_by(
+    NAME, sex, total_state_sex
+  ) %>%
+  select(NAME, sex, total_state_sex, disability, prop) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+  ) -> tab02
+
+tab02 %>% 
+  select(1:4) %>%
+  arrange(- `With a Disability`) %>%
+  DT::datatable(
+    ., 
+    caption = "Percent of State Population with a Disability, by Sex",
+    rownames = FALSE, 
+    colnames = c(
+      "State", "Sex", "Total Population", "% with Disability"
+      ),
+    extensions = 'Buttons', options = list(
+      dom = 'Bfrtip',
+      buttons = 
+        list(
+          #'copy', 'print', 
+          list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download'
+            )
+          )
+      )
+    ) %>%
+  DT::formatPercentage('With a Disability', 1) %>%
+  DT::formatCurrency(
+    'total_state_sex', 
+    currency = "", interval = 3, 
+    mark = ",", digits = 0
+    )
+
+```
+
+
+```{r}
+
+tab01_df %>%
+  group_by(NAME) %>%
+  mutate(
+    state_total = sum(estimate)
+    ) %>%
+  group_by(NAME, age) %>%
+  mutate(
+    total_state_age = sum(estimate)
+    ) %>%
+  group_by(NAME, age, disability) %>%
+  mutate(
+    total_state_age_disabled = sum(estimate)
+    ) %>%
+  ungroup() %>%
+  select(
+    NAME, age, disability, state_total, total_state_age, total_state_age_disabled
+    ) %>%
+  distinct() %>%
+  ungroup() %>%
+  mutate(
+    prop = (total_state_age_disabled / total_state_age)
+  ) %>%
+  group_by(
+    NAME, age, total_state_age
+  ) %>%
+  select(NAME, age, total_state_age, disability, prop) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+  ) -> tab03
+
+tab03 %>% 
+  select(1:4) %>%
+#  arrange(- `With a Disability`) %>%
+  DT::datatable(
+    ., 
+    caption = "Percent of State Population with a Disability, by Age",
+    rownames = FALSE, 
+    colnames = c(
+      "State", "Age-Group", "Total Population", "% with Disability"
+      ),
+    extensions = 'Buttons', options = list(
+      dom = 'Bfrtip',
+      buttons = 
+        list(
+          #'copy', 'print', 
+          list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download'
+            )
+          )
+      )
+    ) %>%
+  DT::formatPercentage('With a Disability', 1) %>%
+  DT::formatCurrency(
+    'total_state_age', 
+    currency = "", interval = 3, 
+    mark = ",", digits = 0
+    )
+
+```
+
+
+### What about Ohio's counties? 
+Scioto county leads with an estimated 23.2% of its population living with a disability, with Delaware bringing up the rear with 8%. A simple map of disability rates per county shows Appalachia faring worse than the rest of the state, as expected. 
+
+
+```{r, include=FALSE}
+get_acs(
+  geography = "county",
+  state = "OH",
+  table = "B18101",
+  year = 2020,
+  geometry = TRUE
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_county
+```
+
+
+```{r}
+b18101_county %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab02_df
+
+tab02_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total_popn = sum(estimate)
+    ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total = sum(estimate)
+    ) %>%
+  ungroup() %>%
+  select(NAME, disability, total_popn, total) %>%
+  distinct() %>%
+  mutate(
+    prop = (total / total_popn)
+  ) %>%
+  group_by(
+    NAME, total_popn
+  ) %>%
+  select(NAME, total_popn, disability, prop) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+  ) -> tab04
+
+tab04 %>%
+  select(1:2, 4) %>%
+  arrange(- `With a Disability`) %>%
+  mutate(
+    NAME = stringr::str_remove_all(NAME, " County, Ohio")
+    ) %>%
+  DT::datatable(
+    ., 
+    caption = "Percent of Ohio's County Populations with a Disability",
+    rownames = FALSE, 
+    colnames = c(
+      "County", "Total Population", "% with Disability"
+      ),
+    extensions = 'Buttons', options = list(
+      dom = 'Bfrtip',
+      buttons = 
+        list(
+          #'copy', 'print', 
+          list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download'
+            )
+          )
+      )
+    ) %>%
+  DT::formatPercentage('With a Disability', 1) %>%
+  DT::formatCurrency(
+    'total_popn', 
+    currency = "", interval = 3, 
+    mark = ",", digits = 0
+    )
+```
+
+
+```{r, fig.align='center', fig.height=8, fig.width = 8, out.width='100%'}
+
+tab04 %>%
+  ggplot() +
+  geom_sf(
+    aes(
+      geometry = geometry,
+      fill = round(`With a Disability` * 100, digits = 0)
+      )
+    ) + 
+  geom_sf_text(
+    aes(
+      geometry = geometry,
+      label = stringr::str_remove_all(NAME, " County, Ohio")
+      ),
+    size = 2.85,
+    color = ifelse(tab04$`With a Disability` > 0.15, "white", "black")
+    ) + 
+  coord_sf(default_crs = sf::st_crs(4326)) +
+  ggthemes::theme_map() +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_c(option = "plasma", direction = -1) +
+  labs(
+    title = "Percent of the County Population with a Disability",
+    caption = "Data Source: ACS 2016-2020, Table B1801",
+    fill = ""
+       )
+
+```
+
+### Does the prevalence of disability vary by Race/Ethnicity?
+
+Indeed it does, with American Indian and Alaska Native Ohioans faring the worst (25.7% are estimated to have a disability), followed by Black or African-American Ohioans (15.3%). Asian Ohioans are the least likely to have a disability (5.9%). 
+
+```{r}
+
+get_acs(
+  geography = "state",
+  table = "B18101H",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_h
+
+b18101_state_h %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_h
+
+get_acs(
+  geography = "state",
+  table = "B18101B",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_b
+
+b18101_state_b %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_b
+
+get_acs(
+  geography = "state",
+  table = "B18101C",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_c
+
+b18101_state_c %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_c
+
+get_acs(
+  geography = "state",
+  table = "B18101D",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_d
+
+b18101_state_d %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_d
+
+get_acs(
+  geography = "state",
+  table = "B18101E",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_e
+
+b18101_state_e %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_e
+
+get_acs(
+  geography = "state",
+  table = "B18101I",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18101_state_i
+
+b18101_state_i %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|:!!No disability|:!!With a disability|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(disability)
+    ) -> tab01_df_i
+
+```
+
+```{r}
+tab01_df_i$race_ethnicity = "Hispanic"
+tab01_df_h$race_ethnicity = "Non-Hispanic White"
+tab01_df_b$race_ethnicity = "Black or African-American Alone"
+tab01_df_c$race_ethnicity = "American Indian and Alaska Native Alone"
+tab01_df_d$race_ethnicity = "Asian Alone"
+tab01_df_e$race_ethnicity = "Native Hawaiian and Other Pacific Islander Alone"
+
+bind_rows(
+  tab01_df_i, tab01_df_b, tab01_df_c, 
+  tab01_df_d, tab01_df_e, tab01_df_h
+  ) -> tab01_race
+
+tab01_race %>%
+  filter(NAME == "Ohio") %>%
+  select(2, 4, 8:10) -> tab01_ohio
+
+tab01_ohio %>%
+  group_by(NAME, race_ethnicity) %>%
+  mutate(
+    total_race = sum(estimate)
+  ) %>%
+  group_by(NAME, race_ethnicity, disability) %>%
+  mutate(
+    total_race_disability = sum(estimate)
+  ) %>%
+  select(NAME, disability, race_ethnicity, total_race, total_race_disability) %>%
+  distinct() %>%
+  mutate(
+    prop_disabled = (total_race_disability / total_race)
+  ) %>%
+  ungroup() %>%
+  filter(disability == "With a Disability") %>%
+  select(3, 6) %>%
+  arrange(- prop_disabled) %>%
+  mutate(
+    prop_disabled = round(prop_disabled * 100, digits = 1)
+  ) %>%
+  knitr::kable(., 
+               booktabs = TRUE,
+               col.names = c("Race/Ethnicity", "% with a Disability"),
+               "html",
+               caption = "Percent of Racial/Ethnic Group with a Disability (Ohio, all ages)"
+               ) %>%
+  kableExtra::kable_styling(full_width = FALSE, "striped")
+
+```
+
+### Prevalence of Specific Difficulties
+
+
+```{r}
+### Hearing Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18102",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18102_state
+
+b18102_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a hearing difficulty", label) ~ "With a Hearing Difficulty",
+      grepl("No hearing difficulty", label) ~ "No Hearing Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No hearing difficulty|:!!With a hearing difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18102_df 
+
+tab18102_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_hearing
+
+```
+
+
+```{r}
+### Vision Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18103",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18103_state
+
+b18103_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a vision difficulty", label) ~ "With a Vision Difficulty",
+      grepl("No vision difficulty", label) ~ "No Vision Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No vision difficulty|:!!With a vision difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18103_df 
+
+tab18103_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_vision
+
+```
+
+
+
+```{r}
+### Cognitive Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18104",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18104_state
+
+b18104_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a cognitive difficulty", label) ~ "With a Cognitive Difficulty",
+      grepl("No cognitive difficulty", label) ~ "No Cognitive Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No cognitive difficulty|:!!With a cognitive difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18104_df 
+
+tab18104_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_cognitive
+
+```
+
+
+
+```{r}
+### Ambulatory Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18105",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18105_state
+
+b18105_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With an ambulatory difficulty", label) ~ "With an Ambulatory Difficulty",
+      grepl("No ambulatory difficulty", label) ~ "No Ambulatory Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No ambulatory difficulty|:!!With an ambulatory difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18105_df 
+
+tab18105_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_ambulatory
+
+```
+
+
+
+```{r}
+### Self-care Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18106",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18106_state
+
+b18106_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With a self-care difficulty", label) ~ "With a Self-Care Difficulty",
+      grepl("No self-care difficulty", label) ~ "No Self-Care Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No self-care difficulty|:!!With a self-care difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18106_df 
+
+tab18106_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_selfcare
+
+```
+
+
+
+```{r}
+### Independent Living Difficulties
+
+get_acs(
+  geography = "state",
+  table = "B18107",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18107_state
+
+b18107_state %>%
+  mutate(
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      ),
+    disability = case_when(
+      grepl("With an independent living difficulty", label) ~ "With an Independent Living Difficulty",
+      grepl("No independent living difficulty", label) ~ "No Independent Living Difficulty"
+      ),
+    age = stringr::str_remove_all(
+      label,
+      "Estimate!!Total:|!!Male:|!!Male:!!|!!Female:|!!Female:!!|:!!No independent living difficulty|:!!With an independent living difficulty|!!|:"
+      )
+    ) %>%
+  filter(
+    !is.na(sex),
+    !is.na(disability)
+    ) -> tab18107_df 
+
+tab18107_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+  ) %>%
+  group_by(NAME, disability) %>%
+  mutate(
+    total_vision = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  select(NAME, disability, total, total_vision) %>%
+  distinct() %>%
+  mutate(
+    prop = (total_vision / total)
+    ) %>%
+  select(1, 2, 3, 5) %>%
+  group_by(
+    NAME, total
+    ) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+    ) -> tab_independent_living
+
+```
+
+Ambulatory, Independent living, and Cognitive difficulties are the most common difficulties experienced by Ohioans. 
+
+```{r}
+tab_ambulatory[, c(1, 3:4)] %>%
+  left_join(
+    tab_cognitive[, c(1, 3:4)], by = "NAME"
+  ) %>%
+  left_join(
+    tab_hearing[, c(1, 3:4)], by = "NAME"
+  ) %>%
+  left_join(
+    tab_independent_living[, c(1, 3:4)], by = "NAME"
+  ) %>%
+  left_join(
+    tab_selfcare[, c(1, 3:4)], by = "NAME"
+  ) %>%
+  left_join(
+    tab_vision[, c(1, 3:4)], by = "NAME"
+  ) -> difficulties
+
+difficulties %>%
+  select(
+    NAME, 
+    contains("With")
+    ) -> tab_difficulties
+
+library(forcats)
+
+tab_difficulties %>%
+  filter(NAME == "Ohio") %>%
+  ungroup() %>%
+  select(-NAME) %>%
+  pivot_longer(
+    names_to = "Difficulty",
+    values_to = "Percent",
+    cols = 1:6
+  ) %>%
+  mutate(
+    Difficulty = stringr::str_remove_all(
+      Difficulty, "With|an|Difficulty|a "
+      ),
+    Difficulty = stringr::str_squish(Difficulty)
+    #, Percent = round(Percent * 100, digits = 2)
+    ) %>%
+  ggplot() +
+  geom_bar(
+    aes(
+      x = Percent,
+      y = fct_reorder(Difficulty, Percent),
+      fill = Percent
+    ),
+    stat = "identity",
+    width = 0.5
+  ) +
+  theme_minimal() +
+  theme(legend.position = "hide") +
+  labs(
+    x = "Percent with Difficulty",
+    y = "Type of Difficulty",
+    title = "Percent of Ohioans with Specific Difficulties",
+    subtitle = "(Independent Living is calculated for the 18+ population, Ambulatory, Cognitive,\nand Self-Care difficulties are calculated for the 5+ population, while Hearing and\nVision difficulties are calculated for all ages)",
+    caption = "Data Source: ACS 2016-2020"
+  ) +
+  scale_x_continuous(label = percent)
+
+```
+
+
+
+### Health Insurance Status
+
+When it comes to insurance status of those with a disability, Ohio does well in comparison to other states. Specifically, 4.1% of Ohioans with a disability lack health insurance, versus Oklahoma with 11.7% (the worst) and Massachusetts with 1.6% (the best). However, these aggregate estimates mask significant variation across age-groups: 3.1% of those under 19 years of age and with a disability lack health insurance, versus 7.1% of the disabled 19-64 years of age, and 0.4% of the disabled 65 years and older. 
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "B18135",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18135_state
+
+b18135_state %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    age = case_when(
+      grepl("Under 19 years", label) ~ "Under 19 years",
+      grepl("19 to 64 years", label) ~ "19 to 64 years",
+      grepl("65 years and over", label) ~ "65 years and over"
+      ),
+    insurance = case_when(
+      grepl("!!With a disability:!!With health insurance coverage:!!With private health insurance coverage", label) ~ "Privately Insured",
+      grepl("!!With a disability:!!With health insurance coverage:!!With public health coverage", label) ~ "Publicly Insured",
+      grepl("!!With a disability:!!With health insurance coverage:", label) ~ "Insured",
+      grepl("!!With a disability:!!No health insurance coverage", label) ~ "Not Insured"
+      )
+    ) %>%
+  filter(
+    !is.na(disability),
+    !is.na(age), 
+    insurance %in% c("Insured", "Not Insured")
+  ) -> tab18135_df 
+
+tab18135_df %>%
+  group_by(NAME) %>%
+  mutate(
+    total = sum(estimate)
+    ) %>%
+  group_by(NAME, insurance) %>%
+  mutate(
+    total_insured = sum(estimate)
+    ) %>%
+  distinct(NAME, insurance, total, total_insured) %>%  
+  mutate(
+    prop = (total_insured / total)
+    ) %>%
+  group_by(NAME, total) %>%
+  select(-total_insured) %>%
+  pivot_wider(
+    names_from = insurance,
+    values_from = prop
+  ) -> tab18135_01
+
+tab18135_df %>%
+  group_by(NAME, age) %>%
+  mutate(
+    total = sum(estimate)
+    ) %>%
+  group_by(NAME, age, insurance) %>%
+  mutate(
+    total_insured = sum(estimate)
+    ) %>%
+  distinct(NAME, age, insurance, total, total_insured) %>%  
+  mutate(
+    prop = (total_insured / total)
+    ) %>%
+  group_by(NAME, age, total) %>%
+  select(-total_insured) %>%
+  pivot_wider(
+    names_from = insurance,
+    values_from = prop
+  ) -> tab18135_02
+```
+
+### Median earnings (in 2020 inflation-adjusted dollars) of the U.S. civilian noninstitutionalized population ages 16 and over with a disability during the previous 12 months from 2016-2020. 
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "B18140",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b18140_state
+
+b18140_state %>%
+  mutate(
+    disability = case_when(
+      grepl("With a disability", label) ~ "With a Disability",
+      grepl("No disability", label) ~ "No Disability"
+      ),
+    sex = case_when(
+      grepl("Male", label) ~ "Male",
+      grepl("Female", label) ~ "Female"
+      )
+    ) -> tab18140_df 
+
+tab18140_df$sex = ifelse(
+  is.na(tab18140_df$sex) & !is.na(tab18140_df$disability), 
+  paste("Total", tab18140_df$disability, sep = " "), 
+  tab18140_df$sex
+  )
+
+tab18140_df$sex = ifelse(
+  is.na(tab18140_df$sex) & is.na(tab18140_df$disability), 
+  "All", 
+  tab18140_df$sex
+  )
+
+tab18140_df$disability = ifelse(
+  is.na(tab18140_df$disability), 
+  "All", 
+  tab18140_df$disability
+  )
+
+tab18140_df %>%
+  mutate(
+    disabled = case_when(
+      sex == "All" ~ "All",
+      sex == "Total With a Disability" ~ "Total with a disability",
+      sex == "Total No Disability" ~ "Total No disability",
+      sex == "Male" ~ paste(sex, disability, sep = " "),
+      sex == "Female" ~ paste(sex, disability, sep = " ")
+    )
+  ) -> tab18140_df
+
+tab18140_df %>%
+  select(
+    NAME, estimate, disabled
+    ) -> tab18140
+
+tab18140 %>%
+  ungroup() %>%
+  group_by(NAME) %>%
+  pivot_wider(
+    names_from = disabled,
+    values_from = estimate
+  ) -> tab18140_01
+```
+
+```{r}
+library(forcats)
+
+tab18140_df %>%
+  filter(NAME == "Ohio") %>%
+  ggplot() +
+  geom_bar(
+    aes(
+      x = estimate, 
+      y = fct_reorder(disabled, estimate),
+      fill = estimate
+      ),
+    stat = "identity",
+    width = 0.5
+  ) +
+  theme_minimal() +
+  theme(legend.position = 'hide') +
+  labs(
+    x = "Median Earnings in 2020 inflation-adjusted dollars",
+    y = "",
+    title = "Median Earnings by 16+ Population Group",
+    subtitle = "(arranged in descending order of median earnings)",
+    caption = "Source: ACS 2016-2020"
+  ) +
+  scale_x_continuous(label = comma)
+
+```
+
+### Receipt of Food Stamps/SNAP 
+
+Of the 4,717,226 households in Ohio, some 12.6% (593,108 households) receive Food Stamps/SNAP, and 51.1% of the households that receive Food Stamps/SNAP have one or more persons with a disability. As a comparison, consider that only 23.6% of households that do not receive Food Stamps/SNAP have one or more persons with a disability.  
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "B22010",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b22010_state
+
+b22010_state %>%
+  mutate(
+    snap = case_when(
+      grepl("Estimate!!Total:!!Household received Food Stamps/SNAP in the past 12 months:", label) ~ "Received SNAP",
+      grepl("Estimate!!Total:!!Household received Food Stamps/SNAP in the past 12 months:!!Households with 1 or more persons with a disability", label) ~ "Received SNAP 1+ Disability",
+      grepl("Estimate!!Total:!!Household received Food Stamps/SNAP in the past 12 months:!!Households with no persons with a disability", label) ~ "Received SNAP 0 Disability",
+      grepl("Estimate!!Total:!!Household did not receive Food Stamps/SNAP in the past 12 months:", label) ~ "Did not Receive SNAP",
+      grepl("Estimate!!Total:!!Household did not receive Food Stamps/SNAP in the past 12 months:!!Households with 1 or more persons with a disability", label) ~ "Did not Receive SNAP 1+ Disability",
+      grepl("Estimate!!Total:!!Household did not receive Food Stamps/SNAP in the past 12 months:!!Households with no persons with a disability", label) ~ "Did not Receive SNAP 0 Disability",
+      grepl("Estimate!!Total:", label) ~ "All"
+      ),
+    disability = case_when(
+      grepl("1 or more", label) ~ "1 or more persons",
+      grepl("no persons", label) ~ "0 persons"
+      )
+    ) -> b22010_state
+
+b22010_state %>%
+  filter(
+    !is.na(disability)
+    ) %>%
+  select(
+    2, 4, 8:9
+  ) -> b22010_df 
+
+b22010_df %>%
+  group_by(NAME, snap) %>%
+  mutate(
+    total_snap = sum(estimate)
+  ) %>%
+  mutate(
+    prop_disabled = (estimate / total_snap)
+  ) %>%
+  filter(NAME == "Ohio") -> fs_snap
+
+```
+
+### Poverty Status of Disabled Ohioans
+
+Some 27.4% of Ohioans 20-64 years of age and living in poverty have a disability, versus 9.8% of similarly aged Ohioans with incomes at or above the poverty line. 
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "B23024",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> b23024_state
+
+b23024_state %>%
+  mutate(
+    poverty = case_when(
+      grepl("Income in the past 12 months below poverty level", label) ~ "In Poverty",
+      grepl("Income in the past 12 months at or above poverty level:", label) ~ "Not in Poverty"
+      ),
+    disabled = case_when(
+      grepl("With a disability", label) ~ "Disabled",
+      grepl("No disability", label) ~ "Not Disabled"
+      ),
+    laborforce = case_when(
+      grepl("In labor force", label) ~ "In Labor Force",
+      grepl("Not in labor force", label) ~ "Not in Labor Force"
+      ),
+    civilian = case_when(
+      grepl("Civilian", label) ~ "Civilian",
+      grepl("Armed", label) ~ "Armed Forces"
+      ),
+    employment = case_when(
+      grepl("Employed", label) ~ "Employed",
+      grepl("Unemployed", label) ~ "Unemployed"
+      )
+    ) -> b23024_df
+
+b23024_df %>%
+  group_by(NAME, disabled) %>%
+  summarize(total = sum(estimate)) %>%
+  filter(NAME == "Ohio") -> tab_poverty
+
+```
+
+### Age and Number of Disabilities
+
+```{r}
+get_acs(
+  geography = "state",
+  table = "C18108",
+  year = 2020
+  ) %>%
+  left_join(
+    myvars[, c(1:3)],
+    by = c("variable" = "name")
+  ) -> c18108_state
+
+c18108_state %>%
+  mutate(
+    age = case_when(
+      grepl("Under 18 years", label) ~ "Under 18 years",
+      grepl("18 to 64 years", label) ~ "18 to 64 years",
+      grepl("65 years and over", label) ~ "65 years and over"
+      ),
+    disability = case_when(
+      grepl("With one type of disability", label) ~ "One",
+      grepl("With two or more", label) ~ "Two or more",
+      grepl("No disability", label) ~ "Zero"
+      )
+    ) -> c18108_df
+
+c18108_df %>%
+  filter(
+    NAME == "Ohio", 
+    !is.na(age),
+    !is.na(disability)
+    ) %>%
+  select(age, disability, estimate) %>%
+  group_by(age) %>%
+  mutate(
+    total_age = sum(estimate)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    prop = (estimate / total_age)
+  ) %>%
+  select(age, disability, prop) %>%
+  filter(disability != "Zero") %>%
+  mutate(
+    prop = round(prop * 100, digits = 1)
+  ) %>%
+  group_by(age) %>%
+  pivot_wider(
+    names_from = disability,
+    values_from = prop
+  ) %>%
+  knitr::kable(., booktabs = TRUE, "html", col.names = c("Age", "1 Disability", "2+ Disabilities"), row.names = FALSE, 
+               caption = "Percent of Ohioans with 1 or more disabilities, by Age-group") %>%
+kableExtra::kable_styling(full_width = FALSE, "striped")
+
+```
+
+
+
