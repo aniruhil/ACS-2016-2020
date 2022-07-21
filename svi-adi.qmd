@@ -122,3 +122,8 @@ The SVI includes four sub-indices, and the analysis shows that two of them were 
 
 The authors conclude that this shows that ADI can be used as an alternative to SVI, but with the caveat that SVI is more useful for larger geographic areas because it focuses on the county level, while ADI is better for targeting smaller areas because it includes data at the level of neighborhoods, but lacks data on race/ethnicity.  
 
+Another study compared four indices, including the ADI and SVI, in the context of COVID-19 vaccine allocations (see [here](https://jama.jamanetwork.com/article.aspx?doi=10.1001/jamahealthforum.2021.4501&utm_campaign=articlePDF%26utm_medium=articlePDFlink%26utm_source=articlePDF%26utm_content=jamahealthforum.2021.4501)). The main takeaway there was:
+
+> The ADI reports the most granular geographic units (block groups), compared
+with the CCVI and SVI (census tracts). Larger geographic units may mask heterogeneities in “disadvantage” in population-dense settings, such as larger cities, and may lead to underestimation of disadvantage. However, because most data are available at the census tract, one can favor pragmatically trading off accuracy for comprehensiveness of data. Additional variation is found in indices’ variable weighting, for which some indices rely on factor score coefficients (ADI) while others have fixed weights for each domain, resulting in differences even among indices with similar variables, affecting the broader concept of “disadvantage” that is captured.
+
