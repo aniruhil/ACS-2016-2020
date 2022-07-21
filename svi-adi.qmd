@@ -8,7 +8,7 @@ self-contained: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE, fig.align = "center", fig.retina = 3, out.width = "100%")
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE, fig.align = "center", fig.retina = 3, out.width = "100%", fig.width = 8, fig.height = 8)
 
 library(tidyverse)
 
@@ -28,7 +28,9 @@ Latest data are for available for 2018 but are really American Community Survey 
 
 Here is a county-level map. 
 
-```{r svi}
+::: {.page}
+
+```{r svi, out.width="100%"}
 ohsvi2018 %>%
   select(FIPS, COUNTY, RPL_THEMES) -> ohsvi
 
@@ -52,12 +54,15 @@ mydf01 %>%
 
 ```
 
+:::
 
 ## [The Area Deprivation Index](https://www.neighborhoodatlas.medicine.wisc.edu/)
 
 The Area Deprivation Index (ADI) is based on a measure created by the Health Resources & Services Administration (HRSA) over three decades ago, and has since been refined, adapted, and validated to the Census Block Group neighborhood level by Amy Kind, MD, PhD and her research team at the University of Wisconsin-Madison. It allows for rankings of neighborhoods by socioeconomic disadvantage in a region of interest (e.g. at the state or national level). It includes factors for the theoretical domains of income, education, employment, and housing quality. It can be used to inform health delivery and policy, especially for the most disadvantaged neighborhood groups. "Neighborhood" is defined as a Census Block Group.
 
-```{r adi01}
+::: {.page}
+
+```{r adi01, out.width="100%"}
 library(sociome)
 
 get_adi(
@@ -83,6 +88,8 @@ mydf02 %>%
     caption = "Source: ACS 2016-2020" 
   )
 ```
+
+:::
 
 How well do the two indices correlate?
 
@@ -228,7 +235,7 @@ mydf %>%
   labs(
 #    subtitle = "Race and Median Household Income in Ohio's Census Tracts",
 #    subtitle = "in Ohio's Census Tracts",
-    caption = "Data: ACS (2015-2019) | @aruhil"
+    caption = "Data: ACS (2016-2020) | @aruhil"
   ) +
   bi_theme() -> mymap
 
