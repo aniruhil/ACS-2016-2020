@@ -170,4 +170,109 @@ with the CCVI and SVI (census tracts). Larger geographic units may mask heteroge
 
 See also [here](https://doi-org.proxy.library.ohio.edu/10.1016/j.jss.2020.07.002) for indices and elective surgeries. 
 
+## An Example of a Bivariate Choropleth Map
+
+```{r, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+
+get_acs(
+  "tract", 
+  state = "OH", 
+  year = 2020,
+  variables = c(
+    white_nh = "B03002_003",
+    mdhincome = "B19013_001"
+    ),
+  summary_var = "B03002_001",
+  output = "wide",
+  geometry = TRUE
+  ) -> popdf
+
+popdf %>%
+  group_by(GEOID, NAME,) %>%
+  mutate(
+    prop_white = (white_nhE / summary_est)
+    ) %>%
+  select(GEOID, NAME, prop_white, mdhincomeE) -> df01
+
+df01 %>%
+  filter(!is.na(mdhincomeE)) -> df02
+
+library(biscale)
+
+bi_class(
+  df02, 
+  x = prop_white, 
+  y = mdhincomeE, 
+  style = "quantile", 
+  dim = 3
+  ) -> mydf
+```
+
+::: {.page}
+
+```{r themap, out.width="100%", fig.cap="Race and Median Household Income in Ohio's Census Tracts"}
+mydf %>%
+  ggplot() +
+  geom_sf(
+    aes(fill = bi_class), 
+    color = "white", 
+    size = 0.1, 
+    show.legend = FALSE
+    ) +
+  bi_scale_fill(
+    pal = "DkBlue", 
+    dim = 3
+    ) +
+  labs(
+#    subtitle = "Race and Median Household Income in Ohio's Census Tracts",
+#    subtitle = "in Ohio's Census Tracts",
+    caption = "Data: ACS (2015-2019) | @aruhil"
+  ) +
+  bi_theme() -> mymap
+
+bi_legend(
+  pal = "DkBlue",
+  dim = 3,
+  xlab = "% White ",
+  ylab = "Income ",
+  size = 8
+  ) -> mylegend
+
+library(cowplot)
+ggdraw() +
+  draw_plot(mymap, 0, 0, 1, 1) +
+  draw_plot(mylegend, 0.7, 0.1, 0.2, 0.2)
+```
+
+
+
+```{r franklin, out.width="100%", fig.cap = "Race and Median Household Income in Franklin County's Census Tracts"}
+mydf %>%
+  filter(grepl("Franklin", NAME)) %>%
+  ggplot() +
+  geom_sf(
+    aes(fill = bi_class), 
+    color = "white", 
+    size = 0.1, 
+    show.legend = FALSE
+    ) +
+  bi_scale_fill(
+    pal = "DkBlue", 
+    dim = 3
+    ) +
+  labs(
+    # subtitle = "Race and Median Household Income in Frankli County's Tracts",
+    #, subtitle = "in Franklin County's Census Tracts",
+    caption = "Data: ACS (2016-2020) | @aruhil"
+  ) +
+  bi_theme() -> mymap
+
+ggdraw() +
+  draw_plot(mymap, 0, 0, 1, 1) +
+  draw_plot(mylegend, 0.80, 0.01, 0.3, 0.2)
+
+```
+:::
 
