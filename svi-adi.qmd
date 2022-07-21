@@ -105,10 +105,50 @@ mydf %>%
     x = "Social Vulnerability Index (2014-2018)",
     y = "Area Deprivation Index (2016-2020)",
     title = "The two indices line up well but not perfectly",
-    subtitle = "(Both indices are plotted in trms of their z-scores)",
+    subtitle = "(Both indices are plotted in z-score units)",
     caption = "Source: ACS (2014-18; 2016-20) | Author: @aruhil"
     )
 ```
+
+Another way to look at it would be in terms of county rankings on each index. 
+
+```{r rankings}
+
+mydf %>%
+  ggplot() +
+  geom_point(
+    aes(
+      x = rank(RPL_THEMES),
+      y = rank(ADI)
+    )
+  ) +
+  themeani::theme_ani_cambay() +
+  labs(
+    x = "Social Vulnerability Index (2014-2018)",
+    y = "Area Deprivation Index (2016-2020)",
+    title = "Here you see more differences across the two indices",
+    subtitle = "(Both indices are plotted in terms of their ranked z-scores)",
+    caption = "Source: ACS (2014-18; 2016-20) | Author: @aruhil"
+    )
+
+```
+
+We might as well look at the county ranks in detail; the table below reflects how a county stacks up on SVI versus ADI ranks. 
+
+```{r ranked-table}
+sf::st_geometry(mydf) <- NULL
+
+mydf %>%
+  select(COUNTY, RPL_THEMES, ADI) %>%
+  mutate(
+    `SVI Rank` = rank(RPL_THEMES),
+    `ADI Rank` = rank(ADI)
+    ) %>%
+  select(COUNTY, `SVI Rank`, `ADI Rank`) %>%
+  arrange(`SVI Rank`) %>%
+  DT::datatable(rownames = FALSE)
+```
+
 
 ## [Evidence-Based Perspectives](https://ihpi.umich.edu/sites/default/files/2021-06/ADIvSVI-COVID-MI_brief_Tipirneni_050521.pdf)
 
@@ -126,4 +166,7 @@ Another study compared four indices, including the ADI and SVI, in the context o
 
 > The ADI reports the most granular geographic units (block groups), compared
 with the CCVI and SVI (census tracts). Larger geographic units may mask heterogeneities in “disadvantage” in population-dense settings, such as larger cities, and may lead to underestimation of disadvantage. However, because most data are available at the census tract, one can favor pragmatically trading off accuracy for comprehensiveness of data. Additional variation is found in indices’ variable weighting, for which some indices rely on factor score coefficients (ADI) while others have fixed weights for each domain, resulting in differences even among indices with similar variables, affecting the broader concept of “disadvantage” that is captured.
+
+See also [here](https://doi-org.proxy.library.ohio.edu/10.1016/j.jss.2020.07.002) for indices and elective surgeries. 
+
 

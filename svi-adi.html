@@ -29,6 +29,16 @@ ul.task-list{list-style: none;}
 <link href="svi-adi_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="svi-adi_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet">
 
+<script src="svi-adi_files/libs/htmlwidgets-1.5.4/htmlwidgets.js"></script>
+<link href="svi-adi_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="svi-adi_files/libs/datatables-binding-0.23/datatables.js"></script>
+<script src="svi-adi_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<link href="svi-adi_files/libs/dt-core-1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
+<link href="svi-adi_files/libs/dt-core-1.11.3/css/jquery.dataTables.extra.css" rel="stylesheet">
+<script src="svi-adi_files/libs/dt-core-1.11.3/js/jquery.dataTables.min.js"></script>
+<link href="svi-adi_files/libs/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet">
+<script src="svi-adi_files/libs/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+
 
 </head>
 
@@ -90,13 +100,31 @@ ul.task-list{list-style: none;}
 </div>
 </div>
 <p>How well do the two indices correlate?</p>
-<div class="cell" data-layout-align="center" data-hash="svi-adi_cache/html/correlate_2dc5bf1790ee15f59b6415a85df5aecd">
+<div class="cell" data-layout-align="center" data-hash="svi-adi_cache/html/correlate_44e909fa7c448218a95f0255ad018271">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="svi-adi_files/figure-html/correlate-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
 </figure>
 </div>
+</div>
+</div>
+<p>Another way to look at it would be in terms of county rankings on each index.</p>
+<div class="cell" data-layout-align="center" data-hash="svi-adi_cache/html/rankings_3d2a46ca0488bf56588676c183a8612f">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="svi-adi_files/figure-html/rankings-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We might as well look at the county ranks in detail; the table below reflects how a county stacks up on SVI versus ADI ranks.</p>
+<div class="cell" data-layout-align="center" data-hash="svi-adi_cache/html/ranked-table_fe3f9a84854377322c299b0befb6da5d">
+<div class="cell-output-display">
+
+<div id="htmlwidget-7256831f5f9d93719b79" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-7256831f5f9d93719b79">{"x":{"filter":"none","vertical":false,"data":[["Medina","Putnam","Delaware","Warren","Mercer","Auglaize","Union","Geauga","Clermont","Miami","Lake","Darke","Carroll","Ottawa","Henry","Wood","Preble","Van Wert","Fulton","Shelby","Morrow","Greene","Hancock","Defiance","Wyandot","Licking","Fairfield","Portage","Williams","Pickaway","Paulding","Erie","Knox","Champaign","Logan","Crawford","Summit","Madison","Tuscarawas","Washington","Belmont","Butler","Stark","Seneca","Sandusky","Brown","Noble","Huron","Ashland","Holmes","Clinton","Monroe","Trumbull","Hocking","Hardin","Wayne","Columbiana","Fayette","Lorain","Franklin","Harrison","Hamilton","Jefferson","Perry","Lawrence","Morgan","Allen","Mahoning","Muskingum","Richland","Coshocton","Marion","Gallia","Guernsey","Montgomery","Meigs","Cuyahoga","Lucas","Highland","Vinton","Ross","Clark","Athens","Adams","Jackson","Ashtabula","Pike","Scioto"],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],[5,8,1,2,10,15,3,4,12,16,9,39,44,17,24,18,23,37,19,30,20,7,21,28,31,11,6,22,38,29,43,41,26,36,34,66,33,13,51,47,50,14,42,48,45,49,64,46,40,54,55,68,73,52,57,27,61,70,32,25,79,35,75,71,76,83,59,78,65,63,82,62,53,77,56,88,60,74,72,84,58,67,69,86,80,85,81,87]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>COUNTY<\/th>\n      <th>SVI Rank<\/th>\n      <th>ADI Rank<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,2]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
@@ -113,6 +141,7 @@ ul.task-list{list-style: none;}
 <blockquote class="blockquote">
 <p>The ADI reports the most granular geographic units (block groups), compared with the CCVI and SVI (census tracts). Larger geographic units may mask heterogeneities in “disadvantage” in population-dense settings, such as larger cities, and may lead to underestimation of disadvantage. However, because most data are available at the census tract, one can favor pragmatically trading off accuracy for comprehensiveness of data. Additional variation is found in indices’ variable weighting, for which some indices rely on factor score coefficients (ADI) while others have fixed weights for each domain, resulting in differences even among indices with similar variables, affecting the broader concept of “disadvantage” that is captured.</p>
 </blockquote>
+<p>See also <a href="https://doi-org.proxy.library.ohio.edu/10.1016/j.jss.2020.07.002">here</a> for indices and elective surgeries.</p>
 </section>
 
 </main>
