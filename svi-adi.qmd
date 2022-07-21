@@ -1,0 +1,124 @@
+---
+title: "Social Vulnerability Index vs the Area Deprivation Index"
+author: "Ani Ruhil"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE, fig.align = "center", fig.retina = 3, out.width = "100%")
+
+library(tidyverse)
+
+readr::read_csv("~/Documents/Data Hub/CDC Data/Social Vulnerability Index/data/SVI2018_US_COUNTY.csv") %>%
+  filter(ST_ABBR == "OH") -> ohsvi2018
+
+library(tigris)
+counties(state = "OH", year = 2020) -> ohshp
+
+```
+
+## [The Social Vulnerability Index](https://www.atsdr.cdc.gov/placeandhealth/svi/documentation/pdf/SVI2018Documentation-H.pdf)
+
+Latest data are for available for 2018 but are really American Community Survey (ACS) 2014-2018 data. The most recent ACS data are for 2016-2020. 
+
+![](https://www.atsdr.cdc.gov/placeandhealth/svi/documentation/pdf/CDC-SVI-Variables.jpg?_=81002)
+
+Here is a county-level map. 
+
+```{r svi}
+ohsvi2018 %>%
+  select(FIPS, COUNTY, RPL_THEMES) -> ohsvi
+
+ohshp %>%
+  left_join(
+    ohsvi, by = c("GEOID" = "FIPS")
+  ) -> mydf01
+
+mydf01 %>%
+  ggplot() +
+  geom_sf(aes(fill = RPL_THEMES)) +
+  ggthemes::theme_map() + 
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_c() +
+  labs(
+    fill = "",
+    title = "2014-2018 Social Vulnerability Index by Ohio County",
+    subtitle = "Higher values indicate greater vulnerability",
+    caption = "Source: ACS 2014-2018" 
+  )
+
+```
+
+
+## [The Area Deprivation Index](https://www.neighborhoodatlas.medicine.wisc.edu/)
+
+The Area Deprivation Index (ADI) is based on a measure created by the Health Resources & Services Administration (HRSA) over three decades ago, and has since been refined, adapted, and validated to the Census Block Group neighborhood level by Amy Kind, MD, PhD and her research team at the University of Wisconsin-Madison. It allows for rankings of neighborhoods by socioeconomic disadvantage in a region of interest (e.g. at the state or national level). It includes factors for the theoretical domains of income, education, employment, and housing quality. It can be used to inform health delivery and policy, especially for the most disadvantaged neighborhood groups. "Neighborhood" is defined as a Census Block Group.
+
+```{r adi01}
+library(sociome)
+
+get_adi(
+  geography = "county", 
+  state = "OH", 
+  year = 2020, 
+  dataset = "acs5"
+  ) -> ohadi
+
+ohshp %>%
+  left_join(ohadi, by = "GEOID") -> mydf02
+
+mydf02 %>%
+  ggplot() +
+  geom_sf(aes(fill = ADI)) +
+  ggthemes::theme_map() + 
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_c() +
+  labs(
+    fill = "",
+    title = "2016-2020 Area Deprivation Index by Ohio County",
+    subtitle = "Higher values indicate greater vulnerability",
+    caption = "Source: ACS 2016-2020" 
+  )
+```
+
+How well do the two indices correlate?
+
+```{r correlate}
+mydf01 %>%
+  left_join(
+    ohadi, 
+    by = "GEOID"
+    ) -> mydf
+
+mydf %>%
+  ggplot() +
+  geom_point(
+    aes(
+      x = scale(RPL_THEMES),
+      y = scale(ADI)
+    )
+  ) +
+  themeani::theme_ani_cambay() +
+  labs(
+    x = "Social Vulnerability Index (2014-2018)",
+    y = "Area Deprivation Index (2016-2020)",
+    title = "The two indices line up well but not perfectly",
+    subtitle = "(Both indices are plotted in trms of their z-scores)",
+    caption = "Source: ACS (2014-18; 2016-20) | Author: @aruhil"
+    )
+```
+
+## [Evidence-Based Perspectives](https://ihpi.umich.edu/sites/default/files/2021-06/ADIvSVI-COVID-MI_brief_Tipirneni_050521.pdf)
+
+When it comes to assessing COVID-19's impact on a specific geographic location, and using that information to prioritize resources such as vaccine and coronavirus testing, two different systems of measuring social disadvantage have been used. One, the Social Vulnerability Index, has already been used in Michigan to prioritize vaccination, while the other, called the Area Deprivation Index, had not. 
+
+Analysis by IHPI members Renuka Tipirneni, M.D., M.S., and Paula Lantz, Ph.D., M.S., together with Monita Karmakar, Ph.D., M.S. showed that 
+
+> both ADI and SVI had similar associations with COVID-19 incidence and mortality overall, though ADI had stronger associations with mortality. 
+
+The SVI includes four sub-indices, and the analysis shows that two of them were associated with COVID-19 incidence, while the other two were associated with mortality.
+
+The authors conclude that this shows that ADI can be used as an alternative to SVI, but with the caveat that SVI is more useful for larger geographic areas because it focuses on the county level, while ADI is better for targeting smaller areas because it includes data at the level of neighborhoods, but lacks data on race/ethnicity.  
+
