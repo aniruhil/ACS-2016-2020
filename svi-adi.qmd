@@ -4,6 +4,7 @@ author: "Ani Ruhil"
 format: html
 editor_options: 
   chunk_output_type: console
+self-contained: true
 ---
 
 ```{r setup, include=FALSE}
